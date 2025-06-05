@@ -2,7 +2,8 @@ from config import (
     HSV_WHITE_LOWER, HSV_WHITE_UPPER,
     HSV_ORANGE_LOWER, HSV_ORANGE_UPPER,
     HSV_BLUE_LOWER, HSV_BLUE_UPPER,
-    HSV_PINK_LOWER, HSV_PINK_UPPER
+    HSV_PINK_LOWER, HSV_PINK_UPPER,
+    HSV_RED_LOWER, HSV_RED_UPPER
 )
 
 import cv2
@@ -67,6 +68,24 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
 
+    def detect_walls(self, frame):
+        hsv = self.preprocess_frame(frame)
+
+        red_mask = self.clean_mask(cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER))
+
+        contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        wall_boxes = []
+
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area < 500:  # Tune this threshold based on wall size
+                continue
+
+            x, y, w, h = cv2.boundingRect(cnt)
+            wall_boxes.append((x, y, w, h))
+
+        return wall_boxes
+
     def detect_balls(self, frame):
         hsv = self.preprocess_frame(frame)
 
@@ -90,6 +109,8 @@ class VisionSystem:
                 raw_detections.append((int(x), int(y), is_vip))
 
         return self.assign_ball_ids(raw_detections)
+
+
 
     def assign_ball_ids(self, current_detections):
         new_ids = {}
@@ -115,6 +136,7 @@ class VisionSystem:
 
         self.prev_ball_ids = new_ids.copy()
         return new_ids
+
 
     def detect_robot(self, frame):
         hsv = self.preprocess_frame(frame)
