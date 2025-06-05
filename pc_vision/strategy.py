@@ -12,7 +12,6 @@ class StrategyPlanner:
             return self.command_queue.pop(0)
 
         if self.target_ball is not None:
-            # We already completed a full plan
             self.done = True
             return None
 
@@ -26,7 +25,7 @@ class StrategyPlanner:
             return None
 
         vip_balls = [b for b in balls if b[2]]
-        candidates = vip_balls if vip_balls else balls
+        candidates = balls if balls else vip_balls
 
         target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b[0], b[1]))
         self.target_ball = target
@@ -41,7 +40,7 @@ class StrategyPlanner:
         self.command_queue = [
             f"rotate {int(angle_deg)}",
             f"move {int(distance_cm)}",
-            "intake on"
+            "intake on",
         ]
 
         return self.command_queue.pop(0)

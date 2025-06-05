@@ -61,8 +61,8 @@ def handle_command(cmd):
                 intake_left.run_time(-600, duration)
                 intake_right.run_time(600, duration)
             else:
-                intake_left.run(-600)
-                intake_right.run(600)
+                intake_left.run_time(-600, 30)
+                intake_right.run_time(600, 30)
             return "done"
 
         else:
