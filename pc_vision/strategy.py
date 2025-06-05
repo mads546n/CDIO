@@ -11,10 +11,6 @@ class StrategyPlanner:
         if self.command_queue:
             return self.command_queue.pop(0)
 
-        if self.target_ball is not None:
-            self.done = True
-            return None
-
         if not balls or robot_pos is None:
             return None
 
@@ -25,7 +21,7 @@ class StrategyPlanner:
             return None
 
         vip_balls = [b for b in balls if b[2]]
-        candidates = balls if balls else vip_balls
+        candidates = vip_balls
 
         target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b[0], b[1]))
         self.target_ball = target
@@ -33,17 +29,17 @@ class StrategyPlanner:
         dx = target[0] - robot_x
         dy = target[1] - robot_y
         angle_deg = math.degrees(math.atan2(dy, dx))
-        distance_cm = math.hypot(dx, dy) / 10
+        distance_cm = math.hypot(dx, dy) * 10
 
         print(f"[TARGET] Ball at ({target[0]}, {target[1]}) — angle: {angle_deg:.1f}°, dist: {distance_cm:.1f}cm")
 
         self.command_queue = [
-            f"rotate {int(angle_deg)}",
-            f"move {int(distance_cm)}",
             "intake on",
+            f"move {int(distance_cm)}",
+            f"rotate {int(angle_deg)}",
         ]
 
-        return self.command_queue.pop(0)
+        return self.command_queue.pop()
 
     def _distance(self, x1, y1, x2, y2):
         return math.hypot(x2 - x1, y2 - y1)

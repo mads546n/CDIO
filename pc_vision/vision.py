@@ -10,7 +10,7 @@ import numpy as np
 import math
 
 class VisionSystem:
-    def __init__(self, camera_index=0):
+    def __init__(self, camera_index=1):
         self.cap = cv2.VideoCapture(camera_index)
         if not self.cap.isOpened():
             raise RuntimeError("Failed to open webcam.")

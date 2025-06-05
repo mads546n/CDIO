@@ -28,7 +28,7 @@ def main():
 
         if command is None:
             print("✅ All balls handled or nothing to do.")
-            continue
+            break
 
         print(f"→ Sending command: {command}")
         response = ev3.send_command(command)
