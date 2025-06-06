@@ -39,6 +39,11 @@ def handle_command(cmd):
             dist_cm = int(parts[1])
             robot.straight(dist_cm * 10)
             return "done"
+        
+        elif parts[0] == "sound" and len(parts) == 2:
+            message = parts[1]
+            ev3.speaker.say(message)
+            return "done"
 
         elif parts[0] == "rotate" and len(parts) == 2:
             angle = int(parts[1])

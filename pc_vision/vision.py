@@ -1,3 +1,4 @@
+import sys
 from config import (
     HSV_WHITE_LOWER, HSV_WHITE_UPPER,
     HSV_ORANGE_LOWER, HSV_ORANGE_UPPER,
@@ -139,6 +140,10 @@ class VisionSystem:
             return (center_x, center_y), (pink_pos[0] - blue_pos[0], pink_pos[1] - blue_pos[1])
 
         return None
+    
+    def find_goal(self, frame):
+        print("Scoring not yet implemented!")
+        sys.exit(0)
 
     def __del__(self):
         if self.cap.isOpened():
