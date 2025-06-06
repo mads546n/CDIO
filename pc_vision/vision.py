@@ -37,6 +37,8 @@ class VisionSystem:
 
         balls = self.detect_balls(frame)
         robot_pos = self.detect_robot(frame)
+        eggs = self.detect_eggs(frame, draw_debug=show_debug)
+
 
         if show_debug:
             for ball_id, (x, y, is_vip) in balls.items():
@@ -50,11 +52,12 @@ class VisionSystem:
                 cv2.putText(frame, "Robot", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 cv2.arrowedLine(frame, (x, y), (int(x + dx * 2), int(y + dy * 2)), (255, 0, 255), 2)
 
+            self.detect_walls(frame, draw_debug=show_debug)
             cv2.imshow("GolfBot Vision", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
 
-        return list(balls.values()), robot_pos
+        return list(balls.values()), robot_pos, eggs
 
     def preprocess_frame(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -68,7 +71,7 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
 
-    def detect_walls(self, frame):
+    def detect_walls(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
 
         red_mask = self.clean_mask(cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER))
@@ -84,7 +87,42 @@ class VisionSystem:
             x, y, w, h = cv2.boundingRect(cnt)
             wall_boxes.append((x, y, w, h))
 
+            if draw_debug:
+                cv2.rectangle(frame, (x,y),(x+w,y+h), (0, 255, 0), 2)
+                cv2.putText(frame, "Wall", (x,y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+
         return wall_boxes
+
+    def detect_eggs(self, frame, draw_debug=False):
+        hsv = self.preprocess_frame(frame)
+
+        white_mask = self.clean_mask(cv2.inRange(hsv, HSV_WHITE_LOWER, HSV_WHITE_UPPER))
+        eggs = []
+
+        contours, _ = cv2.findContours(white_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area < 80:  # Tune this
+                continue
+
+            perimeter = cv2.arcLength(cnt, True)
+            if perimeter == 0:
+                continue
+
+            circularity = 4 * math.pi * area / (perimeter ** 2)
+            x, y, w, h = cv2.boundingRect(cnt)
+            aspect_ratio = float(w) / h if h != 0 else 0
+
+            # Heuristic: eggs = more elongated or less circular
+            if circularity < 0.65 and (aspect_ratio < 0.75 or aspect_ratio > 1.3):
+                cx, cy = x + w // 2, y + h // 2
+                eggs.append((cx, cy, w, h))
+
+                if draw_debug:
+                    cv2.ellipse(frame, (cx, cy), (w // 2, h // 2), 0, 0, 360, (200, 0, 255), 2)
+                    cv2.putText(frame, "Egg", (cx - 10, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 0, 255), 1)
+
+        return eggs
 
     def detect_balls(self, frame):
         hsv = self.preprocess_frame(frame)
