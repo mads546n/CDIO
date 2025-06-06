@@ -1,7 +1,7 @@
 # pc_vision/config.py
 
 # EV3 Wi-Fi connection
-EV3_IP = "192.168.1.83"
+EV3_IP = "192.168.43.89"
 EV3_PORT = 12345
 
 # Field dimensions (in cm) — adjust to match your real setup

@@ -1,3 +1,4 @@
+#!/usr/bin/env pybricks-micropython
 from pybricks.hubs import EV3Brick
 from pybricks.ev3devices import Motor
 from pybricks.parameters import Port
@@ -68,7 +69,7 @@ def handle_command(cmd):
             return "error: unknown command"
 
     except Exception as e:
-        return f"error: {str(e)}"
+        {}
 
 while True:
     client, addr = s.accept()
