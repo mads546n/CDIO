@@ -28,6 +28,9 @@ class StrategyPlanner:
         # candidates = white_balls if white_balls else vip_balls
         candidates = vip_balls
 
+        if not candidates:
+            return None
+
         target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b[0], b[1]))
         self.current_target = target
 

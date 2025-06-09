@@ -1,3 +1,8 @@
+import os
+import sys
+
+
+
 from pc_vision.vision import VisionSystem
 import time
 import cv2

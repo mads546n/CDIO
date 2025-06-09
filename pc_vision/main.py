@@ -1,6 +1,6 @@
 # pc_vision/main.py
 
-from pc_vision.vision import VisionSystem
+from vision import VisionSystem
 from strategy import StrategyPlanner
 from communication import EV3SocketClient
 from config import MOCK_MODE
@@ -17,7 +17,7 @@ def main():
     planner = StrategyPlanner()
 
     while True:
-        balls, robot_pos = vision.detect_state(show_debug=True)
+        balls, robot_pos, eggs = vision.detect_state(show_debug=True)
 
         if not balls or robot_pos is None:
             print("⚠️ No balls or robot detected. Retrying...")
