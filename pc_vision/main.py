@@ -21,40 +21,40 @@ def main():
 
         if not balls or robot_pos is None:
             print("⚠️ No balls or robot detected. Retrying...")
-            time.sleep(0.5)
             continue
 
-        command = planner.decide_next_action(balls, robot_pos)
+        command = planner.approach_ball(balls, robot_pos)
 
         if command is None:
-            print("✅ All balls handled or nothing to do.")
+            print("Could not generate command")
+            continue
+        elif command == "DONE":
             break
 
         print(f"→ Sending command: {command}")
         response = ev3.send_command(command)
         print(f"← Response: {response}")
 
-        # 🧠 Post-action check
-        time.sleep(0.8)  # Let robot settle
-        _, new_robot_pos = vision.detect_state(show_debug=False)
+    while True:
+        goal, robot_pos = vision.find_goal()
 
-        if new_robot_pos is None:
-            print("❌ Robot lost after command! Aborting.")
+        if goal is None or robot_pos is None:
+            print("⚠️ No balls or robot detected. Retrying...")
+            continue
+        elif command == "DONE":
+            ev3.close()
+
+        command = planner.score(goal, robot_pos)
+
+        if command is None:
+            print("Could not generate command")
+            continue
+        elif command == "DONE":
             break
 
-        (old_pos, _) = robot_pos
-        (new_pos, _) = new_robot_pos
-        dx = new_pos[0] - old_pos[0]
-        dy = new_pos[1] - old_pos[1]
-        movement = math.hypot(dx, dy)
-
-        if movement < 10:
-            print(f"⚠️ Robot did not move significantly ({movement:.1f}px). Retrying...")
-            continue  # Optional: Add retry logic later
-
-        time.sleep(0.5)
-
-    ev3.close()
+        print(f"→ Sending command: {command}")
+        response = ev3.send_command(command)
+        print(f"← Response: {response}")
 
 if __name__ == "__main__":
     main()

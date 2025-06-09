@@ -1,4 +1,6 @@
-from pc_vision.config import (
+
+import sys
+ from pc_vision.config import (
     HSV_WHITE_LOWER, HSV_WHITE_UPPER,
     HSV_ORANGE_LOWER, HSV_ORANGE_UPPER,
     HSV_BLUE_LOWER, HSV_BLUE_UPPER,
@@ -11,7 +13,7 @@ import numpy as np
 import math
 
 class VisionSystem:
-    def __init__(self, camera_index=0):
+    def __init__(self, camera_index=1):
         self.cap = cv2.VideoCapture(camera_index)
         if not self.cap.isOpened():
             raise RuntimeError("Failed to open webcam.")
@@ -199,6 +201,10 @@ class VisionSystem:
             return (center_x, center_y), (pink_pos[0] - blue_pos[0], pink_pos[1] - blue_pos[1])
 
         return None
+    
+    def find_goal(self, frame):
+        print("Scoring not yet implemented!")
+        sys.exit(0)
 
     def __del__(self):
         if self.cap.isOpened():
