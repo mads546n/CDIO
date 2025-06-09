@@ -1,6 +1,6 @@
 
 import sys
- from pc_vision.config import (
+from pc_vision.config import (
     HSV_WHITE_LOWER, HSV_WHITE_UPPER,
     HSV_ORANGE_LOWER, HSV_ORANGE_UPPER,
     HSV_BLUE_LOWER, HSV_BLUE_UPPER,

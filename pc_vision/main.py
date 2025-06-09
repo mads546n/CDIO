@@ -1,6 +1,6 @@
 # pc_vision/main.py
 
-from vision import VisionSystem
+from pc_vision.vision import VisionSystem
 from strategy import StrategyPlanner
 from communication import EV3SocketClient
 from config import MOCK_MODE
