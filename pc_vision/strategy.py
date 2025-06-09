@@ -19,7 +19,7 @@ class StrategyPlanner:
             return None
 
         if isinstance(robot_pos, tuple) and isinstance(robot_pos[0], tuple):
-            (robot_x, robot_y), _ = robot_pos
+            (robot_x, robot_y), (robot_dx, robot_dy) = robot_pos
         else:
             return None
 
@@ -34,9 +34,9 @@ class StrategyPlanner:
         target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b[0], b[1]))
         self.current_target = target
 
-        dx = target[0] - robot_x
-        dy = target[1] - robot_y
-        angle_deg = -math.degrees(math.atan2(dy, dx))
+        ball_dx = target[0] - robot_x
+        ball_dy = target[1] - robot_y
+        angle_deg = math.degrees(math.atan2(robot_dx*ball_dy - robot_dy*ball_dx, robot_dx*ball_dx + robot_dy*ball_dy))
         distance_cm = self._distance(robot_x, robot_y, target[0], target[1]) / 10
 
         print(f"[TARGET] Ball at ({target[0]}, {target[1]}) — angle: {angle_deg:.1f}°, dist: {distance_cm:.1f}cm")
