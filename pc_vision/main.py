@@ -28,7 +28,7 @@ def main():
         if command is None:
             print("Could not generate command")
             continue
-        elif command is "DONE":
+        elif command == "DONE":
             break
 
         print(f"→ Sending command: {command}")
@@ -41,7 +41,7 @@ def main():
         if goal is None or robot_pos is None:
             print("⚠️ No balls or robot detected. Retrying...")
             continue
-        elif command is "DONE":
+        elif command == "DONE":
             ev3.close()
 
         command = planner.score(goal, robot_pos)
@@ -49,7 +49,7 @@ def main():
         if command is None:
             print("Could not generate command")
             continue
-        elif command is "DONE":
+        elif command == "DONE":
             break
 
         print(f"→ Sending command: {command}")

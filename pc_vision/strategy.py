@@ -33,21 +33,16 @@ class StrategyPlanner:
 
         dx = target[0] - robot_x
         dy = target[1] - robot_y
-        angle_deg = math.degrees(math.atan2(dy, dx))
-        distance_cm = math.hypot(dx, dy) * 10
+        angle_deg = -math.degrees(math.atan2(dy, dx))
+        distance_cm = self._distance(robot_x, robot_y, target[0], target[1]) / 10
 
         print(f"[TARGET] Ball at ({target[0]}, {target[1]}) — angle: {angle_deg:.1f}°, dist: {distance_cm:.1f}cm")
 
-        if distance_cm < 10:
-            self._adjust_angle(angle_deg)
-        elif angle_deg < 5:
-            self._adjust_position(distance_cm)
-        else:
-            self.command_queue = [
-                "intake on",
-                f"move {int(distance_cm)}",
-                f"rotate {int(angle_deg)}",
-            ]
+        self.command_queue = [
+            "intake on",
+            f"move {int(distance_cm)}",
+            f"rotate {int(angle_deg)}",
+        ]
 
         return self.command_queue.pop()
     
@@ -87,7 +82,7 @@ class StrategyPlanner:
         return self.command_queue.pop()
 
     def _distance(self, x1, y1, x2, y2):
-        return math.hypot(x2 - x1, y2 - y1)
+        return math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
     
     def _adjust_angle(self, angle_deg):
         self.command_queue = [
