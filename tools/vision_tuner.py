@@ -1,8 +1,6 @@
 import os
 import sys
-
-
-
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from pc_vision.vision import VisionSystem
 import time
 import cv2

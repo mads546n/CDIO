@@ -1,6 +1,6 @@
 
 import sys
-from config import (
+from pc_vision.config import (
     HSV_WHITE_LOWER, HSV_WHITE_UPPER,
     HSV_ORANGE_LOWER, HSV_ORANGE_UPPER,
     HSV_BLUE_LOWER, HSV_BLUE_UPPER,
@@ -13,7 +13,7 @@ import numpy as np
 import math
 
 class VisionSystem:
-    def __init__(self, camera_index=1):
+    def __init__(self, camera_index=0):
         self.cap = cv2.VideoCapture(camera_index)
         if not self.cap.isOpened():
             raise RuntimeError("Failed to open webcam.")
