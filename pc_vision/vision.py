@@ -35,11 +35,13 @@ class VisionSystem:
     def detect_state(self, show_debug=True):
         ret, frame = self.cap.read()
         if not ret:
-            return [], None
+            return [], None, [], []
 
         balls = self.detect_balls(frame)
         robot_pos = self.detect_robot(frame)
         eggs = self.detect_eggs(frame, draw_debug=show_debug)
+        walls = self.detect_walls(frame, draw_debug=show_debug)
+        goals = self.detect_goals(frame, walls, draw_debug=show_debug)
 
 
         if show_debug:
@@ -54,12 +56,11 @@ class VisionSystem:
                 cv2.putText(frame, "Robot", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 cv2.arrowedLine(frame, (x, y), (int(x + dx * 2), int(y + dy * 2)), (255, 0, 255), 2)
 
-            self.detect_walls(frame, draw_debug=show_debug)
             cv2.imshow("GolfBot Vision", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
 
-        return list(balls.values()), robot_pos, eggs
+        return list(balls.values()), robot_pos, eggs, walls, goals
 
     def preprocess_frame(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -75,25 +76,73 @@ class VisionSystem:
 
     def detect_walls(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
-
         red_mask = self.clean_mask(cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER))
-
+        
         contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        wall_boxes = []
+        wall_contours = []
 
         for cnt in contours:
             area = cv2.contourArea(cnt)
-            if area < 500:  # Tune this threshold based on wall size
+            if area < 500:  # Skip small contours
                 continue
 
-            x, y, w, h = cv2.boundingRect(cnt)
-            wall_boxes.append((x, y, w, h))
+            # Approximate the contour to reduce noise
+            epsilon = 0.01 * cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, epsilon, True)
+            wall_contours.append(approx.reshape(-1, 2))  # Store as list of (x, y)
 
             if draw_debug:
-                cv2.rectangle(frame, (x,y),(x+w,y+h), (0, 255, 0), 2)
-                cv2.putText(frame, "Wall", (x,y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+                cv2.drawContours(frame, [approx], -1, (0, 255, 0), 2)
+                cv2.putText(frame, "Wall", tuple(approx[0][0]), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
 
-        return wall_boxes
+        return wall_contours
+
+    def detect_goals(self, frame, wall_contours=None, draw_debug=False):
+        if wall_contours is None:
+            wall_contours = self.detect_walls(frame)
+
+        potential_goals = []
+
+        for contour in wall_contours:
+            if len(contour) < 2:
+                continue
+
+            rect = cv2.minAreaRect(contour)
+            (cx, cy), (w, h), angle = rect
+
+            length = max(w, h)
+            short_side = min(w, h)
+
+            if length < 100: 
+                continue
+
+            aspect_ratio = length / short_side if short_side > 0 else 999
+            if aspect_ratio < 2.5:
+                continue  
+
+            potential_goals.append(((cx, cy), length, short_side, angle, contour))
+
+        
+        potential_goals.sort(key=lambda x: x[1])
+
+        if len(potential_goals) < 2:
+            return []
+
+        goals = []
+        for i in range(2):
+            (cx, cy), length, short_side, angle, contour = potential_goals[i]
+            goals.append((int(cx), int(cy)))
+
+            if draw_debug:
+                box = cv2.boxPoints(((cx, cy), (length, short_side), angle))
+                box = np.int0(box)
+                cv2.drawContours(frame, [box], 0, (0, 255, 255), 2)
+                cv2.circle(frame, (int(cx), int(cy)), 8, (255, 255, 0), -1)
+                cv2.putText(frame, f"Goal {i+1}", (int(cx) - 10, int(cy) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
+
+        return goals
+
+
 
     def detect_eggs(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
