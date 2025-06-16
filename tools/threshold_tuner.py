@@ -16,7 +16,7 @@ cv2.createTrackbar("S_max", "Tuner", 255, 255, nothing)
 cv2.createTrackbar("V_min", "Tuner", 0, 255, nothing)
 cv2.createTrackbar("V_max", "Tuner", 255, 255, nothing)
 
-cap = cv2.VideoCapture(1)
+cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
 
 if not cap.isOpened():
     raise RuntimeError("Could not open webcam")
