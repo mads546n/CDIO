@@ -59,7 +59,7 @@ class VisionSystem:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
 
-        return list(balls.values()), robot_pos, eggs
+        return list(filter(lambda ball: ball not in eggs, list(balls.values()))), robot_pos, eggs
 
     def preprocess_frame(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -74,27 +74,50 @@ class VisionSystem:
         return mask
 
     def detect_walls(self, frame, draw_debug=False):
-        hsv = self.preprocess_frame(frame)
+    # 1) Make your red mask
+        hsv      = self.preprocess_frame(frame)
+        red_mask = self.clean_mask(
+            cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER)
+        )
 
-        red_mask = self.clean_mask(cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER))
+        # 2) Find all red contours
+        contours, _ = cv2.findContours(
+            red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contours:
+            return None
 
-        contours, _ = cv2.findContours(red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        wall_boxes = []
+        # 3) Merge all contour points into one big point cloud
+        all_pts = np.vstack(contours).reshape(-1, 2)
 
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < 500:  # Tune this threshold based on wall size
-                continue
+        # 4) Compute convex hull of that cloud (optional but cleans up noise)
+        hull = cv2.convexHull(all_pts)
 
-            x, y, w, h = cv2.boundingRect(cnt)
-            wall_boxes.append((x, y, w, h))
+        # 5) Fit one rotated rectangle around the hull
+        rect = cv2.minAreaRect(hull)          # ((cx,cy),(w,h),angle)
+        box  = cv2.boxPoints(rect).astype(np.int32)
 
-            if draw_debug:
-                cv2.rectangle(frame, (x,y),(x+w,y+h), (0, 255, 0), 2)
-                cv2.putText(frame, "Wall", (x,y-5), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
+        if draw_debug:
+            # draw the four sides
+            cv2.drawContours(frame, [box], -1, (0,255,0), 2)
+            # mark the center
+            cx, cy = map(int, rect[0])
+            cv2.circle(frame, (cx,cy), 4, (255,0,0), -1)
+            # annotate size & angle
+            w, h = rect[1]
+            angle = rect[2]
+            cv2.putText(
+                frame,
+                f"{w:.0f}x{h:.0f}@{angle:.1f}°",
+                (cx-50, cy-10),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.5,
+                (255,255,255),
+                1
+            )
 
-        return wall_boxes
-
+        # return the 4 corner points (or unpack rect if you need center/size/angle)
+        return box
     def detect_eggs(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
 

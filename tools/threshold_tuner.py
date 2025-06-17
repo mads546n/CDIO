@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import re
 
-CONFIG_PATH = r"C:\Users\User\Documents\CDIO\pc_vision\config.py"
+CONFIG_PATH = r"C:\Users\danih\Desktop\CDIO\pc_vision\config.py"
 
 def nothing(x):
     pass

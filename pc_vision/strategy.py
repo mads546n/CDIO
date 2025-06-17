@@ -25,8 +25,9 @@ class StrategyPlanner:
 
         vip_balls = [b for b in balls if b[2]]
         white_balls = [b for b in balls if not b[2]]
-        # candidates = white_balls if white_balls else vip_balls
-        candidates = vip_balls
+        white_balls = list(filter(lambda b: self._distance(robot_x, robot_y, b[0], b[1]) > 3.0, white_balls))
+        candidates = white_balls if white_balls else vip_balls
+        # candidates = vip_balls
 
         if not candidates:
             return None
