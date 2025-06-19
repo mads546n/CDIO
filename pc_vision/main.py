@@ -26,7 +26,7 @@ def main():
             print("⚠️ No balls or robot detected. Retrying...")
             continue
 
-        command = planner.approach_ball(balls, robot_pos)
+        command = planner.score(robot_pos)
 
         if command is None:
             print("Could not generate command")

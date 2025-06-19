@@ -61,13 +61,8 @@ def handle_command(cmd):
             return "done"
 
         elif parts[0] == "intake" and parts[1] == "reverse":
-            if len(parts) == 3:
-                duration = int(parts[2])  # in ms
-                intake_left.run_time(600, duration)
-                intake_right.run_time(-600, duration)
-            else:
-                intake_left.run_time(600, 30)
-                intake_right.run_time(-600, 30)
+            intake_left.run(600)
+            intake_right.run(-600)
             return "done"
 
         else:

@@ -33,7 +33,7 @@ class StrategyPlanner:
         is_near_wall = target["wall_proximity"]["is_near_wall"]
         robot_near_wall = self.vision.robot_inside_safe_area(robot_x, robot_y)
 
-        if is_near_wall and not robot_near_wall:
+        """if is_near_wall and not robot_near_wall:
             print("[PLAN] Special wall approach logic activated")
             side = target["wall_proximity"]["side"]
 
@@ -70,7 +70,7 @@ class StrategyPlanner:
                 f"rotate {int(angle_to_ball)}",
                 f"move 20",
             ]
-            return self.command_queue.pop(0)
+            return self.command_queue.pop(0)"""
 
         # Normal field logic
         dx = tx - robot_x
@@ -87,6 +87,36 @@ class StrategyPlanner:
             f"move {int(distance_cm)}"
         ]
         return self.command_queue.pop(0)
+    
+    def score(self, robot_pos):
+        self.debug_draw.clear()
+
+        if self.command_queue:
+            return self.command_queue.pop(0)
+        
+        goal = self.vision.choose_goal(robot_pos)
+
+        (tx, ty) = goal
+        (robot_x, robot_y), (robot_dx, robot_dy) = robot_pos
+
+        dx = tx - robot_x
+        dy = ty - robot_y
+        angle_deg = math.degrees(math.atan2(robot_dx * dy - robot_dy * dx,
+                                            robot_dx * dx + robot_dy * dy))
+        distance_cm = self._distance(robot_x, robot_y, tx, ty) / 10
+
+        print(f"[TARGET] Goal at ({tx}, {ty}) — angle: {angle_deg:.1f}°, dist: {distance_cm:.1f}cm")
+
+        if distance_cm > 10:
+            self.command_queue = [
+                f"intake off"
+                f"rotate {int(angle_deg)}",
+                f"move {int(distance_cm)}"
+            ]
+        else:
+            self.command_queue = [f"intake reverse"]
+        return self.command_queue.pop(0)
+
 
     def get_debug_draw(self):
         return self.debug_draw

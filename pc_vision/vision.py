@@ -118,7 +118,22 @@ class VisionSystem:
         self.wall_bounds = wall_bounds
         self.overlay = overlay
 
+        (x1, x2, y1, y2) = self.wall_bounds
+        height = y2 - y1
+        vertical_middle = y1 + (height / 2)
+
+        self.left_goal = (x1, vertical_middle)
+        self.right_goal = (x2, vertical_middle)
+
         return max_area
+    
+    def choose_goal(self, robot_pos):
+        (x1, x2, _, _) = self.wall_bounds
+        width = x2 - x1
+        horizontal_middle = x1 + (width / 2)
+        ((robot_x, _), _) = robot_pos
+        
+        return self.left_goal if robot_x < horizontal_middle else self.right_goal
 
     def detect_balls(self, frame):
         hsv = self.preprocess_frame(frame)
