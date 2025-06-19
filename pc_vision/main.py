@@ -16,6 +16,7 @@ def main():
 
     planner = StrategyPlanner(vision)
     vision.strategy = planner
+    vision.set_walls()
 
 
     while True:

@@ -65,10 +65,10 @@ class StrategyPlanner:
 
             self.command_queue = [
                 "intake on",
-                f"move 20",
-                f"rotate {int(angle_to_ball)}",
-                f"move {int(distance_to_offset)}",
                 f"rotate {int(angle_to_offset)}",
+                f"move {int(distance_to_offset)}",
+                f"rotate {int(angle_to_ball)}",
+                f"move 20",
             ]
             return self.command_queue.pop(0)
 
@@ -83,8 +83,8 @@ class StrategyPlanner:
 
         self.command_queue = [
             "intake on",
-            f"move {int(distance_cm)}",
-            f"rotate {int(angle_deg)}"
+            f"rotate {int(angle_deg)}",
+            f"move {int(distance_cm)}"
         ]
         return self.command_queue.pop(0)
 

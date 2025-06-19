@@ -1,4 +1,4 @@
-
+import time
 import sys
 from config import (
     HSV_WHITE_LOWER, HSV_WHITE_UPPER,
@@ -44,7 +44,6 @@ class VisionSystem:
         robot_pos = self.detect_robot(frame)
         eggs = self.detect_eggs(frame, draw_debug=show_debug)
 
-
         if show_debug:
             for ball_id, ball in balls.items():
                 (x, y, is_vip) = (ball["x"], ball["y"], ball["is_vip"])
@@ -58,8 +57,6 @@ class VisionSystem:
                 cv2.putText(frame, "Robot", (x + 10, y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 1)
                 cv2.arrowedLine(frame, (x, y), (int(x + dx * 2), int(y + dy * 2)), (255, 0, 255), 2)
 
-            self.detect_walls(frame, draw_debug=show_debug)
-
             if self.strategy and hasattr(self.strategy, "get_debug_draw"):
                 debug = self.strategy.get_debug_draw()
                 if "offset_point" in debug:
@@ -72,6 +69,8 @@ class VisionSystem:
                         pt2 = (int(path[i + 1][0]), int(path[i + 1][1]))
                         cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
 
+            alpha = 0.5
+            cv2.addWeighted(self.overlay, alpha, frame, 1 - alpha, 0, frame)
 
             cv2.imshow("GolfBot Vision", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -91,7 +90,35 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
     
+    def make_estimate(self, frame):
+        overlay = self.detect_walls(frame, draw_debug=True)
+        return (self.wall_bounds, overlay)
+    
+    def set_walls(self):
+        def area_from_estimate(estimate):
+            x1, x2, y1, y2 = estimate
+            return (x2 - x1) * (y2 - y1)
+        
+        _, frame = self.cap.read()
 
+        estimate_count = 10
+        wall_estimates = [self.make_estimate(frame) for _ in range(estimate_count)]
+    
+        areas = list(map(
+            lambda est: area_from_estimate(est[0]),
+            wall_estimates
+        ))
+
+        print(areas)
+
+        max_area = max(areas)
+
+        (wall_bounds, overlay) = list(filter(lambda est: (est[0][1] - est[0][0]) * (est[0][3] - est[0][2]) == max_area, wall_estimates))[0]
+
+        self.wall_bounds = wall_bounds
+        self.overlay = overlay
+
+        return max_area
 
     def detect_balls(self, frame):
         hsv = self.preprocess_frame(frame)
@@ -156,8 +183,6 @@ class VisionSystem:
         return new_ids
 
     def detect_walls(self, frame, draw_debug=False):
-        WALL_MARGIN_PX = 95  # Margin based on ~17cm robot width
-
         # 1) Convert to HSV and mask red
         hsv = self.preprocess_frame(frame)
         red_mask = self.clean_mask(
@@ -210,41 +235,45 @@ class VisionSystem:
             # C. Draw yellow safe area as a frame (not filled)
             margin = WALL_MARGIN_PX
 
+            overlay = frame.copy()
+
             # Top border
             cv2.rectangle(
-                frame,
+                overlay,
                 (x_min, y_min),
                 (x_max, y_min + margin),
                 (0, 255, 255), -1
             )
             # Bottom border
             cv2.rectangle(
-                frame,
+                overlay,
                 (x_min, y_max - margin),
                 (x_max, y_max),
                 (0, 255, 255), -1
             )
             # Left border
             cv2.rectangle(
-                frame,
+                overlay,
                 (x_min, y_min + margin),
                 (x_min + margin, y_max - margin),
                 (0, 255, 255), -1
             )
             # Right border
             cv2.rectangle(
-                frame,
+                overlay,
                 (x_max - margin, y_min + margin),
                 (x_max, y_max - margin),
                 (0, 255, 255), -1
             )
 
-        return box
+            alpha = 0.5
+
+            cv2.addWeighted(overlay, alpha, frame, 1 - alpha, 0, frame)
+
+        return overlay
 
 
     def get_wall_proximity(self, x, y):
-        WALL_MARGIN_PX = 95
-
         if not hasattr(self, "wall_bounds"):
             return {
                 "is_near_wall": False,
