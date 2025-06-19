@@ -28,5 +28,8 @@ HSV_RED_UPPER = (180, 255, 255)
 ROBOT_RADIUS_CM = 9
 WHEEL_BASE_CM = 17
 
+# Safe area
+WALL_MARGIN_PX = 95
+
 # Control mock mode globally if EV3 is not powered
 MOCK_MODE = False

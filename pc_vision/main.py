@@ -14,7 +14,9 @@ def main():
     ev3 = EV3SocketClient(mock_mode=MOCK_MODE)
     ev3.connect()
 
-    planner = StrategyPlanner()
+    planner = StrategyPlanner(vision)
+    vision.strategy = planner
+
 
     while True:
         balls, robot_pos, eggs = vision.detect_state(show_debug=True)

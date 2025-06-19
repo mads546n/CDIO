@@ -5,7 +5,7 @@ from config import (
     HSV_ORANGE_LOWER, HSV_ORANGE_UPPER,
     HSV_BLUE_LOWER, HSV_BLUE_UPPER,
     HSV_PINK_LOWER, HSV_PINK_UPPER,
-    HSV_RED_LOWER, HSV_RED_UPPER
+    HSV_RED_LOWER, HSV_RED_UPPER, WALL_MARGIN_PX
 )
 
 import cv2
@@ -32,6 +32,9 @@ class VisionSystem:
         self.prev_ball_ids = {}
         self.next_id = 0
 
+        self.strategy = None  # Link will be set externally (e.g. in main.py)
+
+
     def detect_state(self, show_debug=True):
         ret, frame = self.cap.read()
         if not ret:
@@ -55,6 +58,20 @@ class VisionSystem:
                 cv2.arrowedLine(frame, (x, y), (int(x + dx * 2), int(y + dy * 2)), (255, 0, 255), 2)
 
             self.detect_walls(frame, draw_debug=show_debug)
+
+            if self.strategy and hasattr(self.strategy, "get_debug_draw"):
+                debug = self.strategy.get_debug_draw()
+                if "offset_point" in debug:
+                    ox, oy = debug["offset_point"]
+                    cv2.circle(frame, (int(ox), int(oy)), 6, (255, 0, 0), -1)
+                if "path" in debug:
+                    path = debug["path"]
+                    for i in range(len(path) - 1):
+                        pt1 = (int(path[i][0]), int(path[i][1]))
+                        pt2 = (int(path[i + 1][0]), int(path[i + 1][1]))
+                        cv2.line(frame, pt1, pt2, (0, 255, 0), 2)
+
+
             cv2.imshow("GolfBot Vision", frame)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
@@ -72,52 +89,188 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
+    
+
+
+    def detect_balls(self, frame):
+        hsv = self.preprocess_frame(frame)
+
+        white_mask = self.clean_mask(cv2.inRange(hsv, HSV_WHITE_LOWER, HSV_WHITE_UPPER))
+        orange_mask = self.clean_mask(cv2.inRange(hsv, HSV_ORANGE_LOWER, HSV_ORANGE_UPPER))
+
+        raw_detections = []
+        for mask, is_vip in [(white_mask, False), (orange_mask, True)]:
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area < 50:
+                    continue
+                perimeter = cv2.arcLength(cnt, True)
+                if perimeter == 0:
+                    continue
+                circularity = 4 * math.pi * area / (perimeter ** 2)
+                if circularity < 0.6:
+                    continue
+                (x, y), _ = cv2.minEnclosingCircle(cnt)
+                
+                ball_data = {
+                    "x": int(x),
+                    "y": int(y),
+                    "is_vip": is_vip,
+                    "wall_proximity": self.get_wall_proximity(int(x), int(y))
+                }
+                raw_detections.append(ball_data)
+
+
+        return self.assign_ball_ids(raw_detections)
+
+
+
+    def assign_ball_ids(self, current_detections):
+        new_ids = {}
+        used_prev_ids = set()
+
+        for ball in current_detections:
+            x, y = ball["x"], ball["y"]
+            min_dist = float('inf')
+            matched_id = None
+
+            for ball_id, prev_ball in self.prev_ball_ids.items():
+                if ball_id in used_prev_ids:
+                    continue
+                px, py = prev_ball["x"], prev_ball["y"]
+                dist = math.hypot(x - px, y - py)
+                if dist < min_dist and dist < 40:
+                    min_dist = dist
+                    matched_id = ball_id
+
+            if matched_id is not None:
+                new_ids[matched_id] = ball
+                used_prev_ids.add(matched_id)
+            else:
+                new_ids[self.next_id] = ball
+                self.next_id += 1
+
+        self.prev_ball_ids = new_ids.copy()
+        return new_ids
 
     def detect_walls(self, frame, draw_debug=False):
-    # 1) Make your red mask
-        hsv      = self.preprocess_frame(frame)
+        WALL_MARGIN_PX = 95  # Margin based on ~17cm robot width
+
+        # 1) Convert to HSV and mask red
+        hsv = self.preprocess_frame(frame)
         red_mask = self.clean_mask(
             cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER)
         )
 
-        # 2) Find all red contours
+        # 2) Find red contours
         contours, _ = cv2.findContours(
             red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
         )
         if not contours:
             return None
 
-        # 3) Merge all contour points into one big point cloud
+        # 3) Merge all contour points
         all_pts = np.vstack(contours).reshape(-1, 2)
 
-        # 4) Compute convex hull of that cloud (optional but cleans up noise)
+        # 4) Compute convex hull
         hull = cv2.convexHull(all_pts)
 
-        # 5) Fit one rotated rectangle around the hull
-        rect = cv2.minAreaRect(hull)          # ((cx,cy),(w,h),angle)
-        box  = cv2.boxPoints(rect).astype(np.int32)
+        # 5) Fit rotated rectangle
+        rect = cv2.minAreaRect(hull)         # ((cx,cy), (w,h), angle)
+        box = cv2.boxPoints(rect).astype(np.int32)
+
+        # 6) Extract axis-aligned bounding box
+        x_min, y_min = np.min(box, axis=0)
+        x_max, y_max = np.max(box, axis=0)
+
+        # 7) Store wall bounds for reuse
+        self.wall_bounds = (x_min, x_max, y_min, y_max)
 
         if draw_debug:
-            # draw the four sides
-            cv2.drawContours(frame, [box], -1, (0,255,0), 2)
-            # mark the center
+            # A. Draw green outer wall rectangle
+            cv2.drawContours(frame, [box], -1, (0, 255, 0), 2)
+
+            # B. Mark center and angle
             cx, cy = map(int, rect[0])
-            cv2.circle(frame, (cx,cy), 4, (255,0,0), -1)
-            # annotate size & angle
+            cv2.circle(frame, (cx, cy), 4, (255, 0, 0), -1)
             w, h = rect[1]
             angle = rect[2]
             cv2.putText(
                 frame,
                 f"{w:.0f}x{h:.0f}@{angle:.1f}°",
-                (cx-50, cy-10),
+                (cx - 50, cy - 10),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
-                (255,255,255),
+                (255, 255, 255),
                 1
             )
 
-        # return the 4 corner points (or unpack rect if you need center/size/angle)
+            # C. Draw yellow safe area as a frame (not filled)
+            margin = WALL_MARGIN_PX
+
+            # Top border
+            cv2.rectangle(
+                frame,
+                (x_min, y_min),
+                (x_max, y_min + margin),
+                (0, 255, 255), -1
+            )
+            # Bottom border
+            cv2.rectangle(
+                frame,
+                (x_min, y_max - margin),
+                (x_max, y_max),
+                (0, 255, 255), -1
+            )
+            # Left border
+            cv2.rectangle(
+                frame,
+                (x_min, y_min + margin),
+                (x_min + margin, y_max - margin),
+                (0, 255, 255), -1
+            )
+            # Right border
+            cv2.rectangle(
+                frame,
+                (x_max - margin, y_min + margin),
+                (x_max, y_max - margin),
+                (0, 255, 255), -1
+            )
+
         return box
+
+
+    def get_wall_proximity(self, x, y):
+        WALL_MARGIN_PX = 95
+
+        if not hasattr(self, "wall_bounds"):
+            return {
+                "is_near_wall": False,
+                "side": None,
+                "distance_px": None
+            }
+
+        x_min, x_max, y_min, y_max = self.wall_bounds
+        proximity = {
+            "is_near_wall": False,
+            "side": None,
+            "distance_px": None
+        }
+
+        if x < x_min + WALL_MARGIN_PX:
+            proximity.update({"is_near_wall": True, "side": "left", "distance_px": x - x_min})
+        elif x > x_max - WALL_MARGIN_PX:
+            proximity.update({"is_near_wall": True, "side": "right", "distance_px": x_max - x})
+        elif y < y_min + WALL_MARGIN_PX:
+            proximity.update({"is_near_wall": True, "side": "top", "distance_px": y - y_min})
+        elif y > y_max - WALL_MARGIN_PX:
+            proximity.update({"is_near_wall": True, "side": "bottom", "distance_px": y_max - y})
+
+        return proximity
+
+    
+
     def detect_eggs(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
 
@@ -149,56 +302,6 @@ class VisionSystem:
 
         return eggs
 
-    def detect_balls(self, frame):
-        hsv = self.preprocess_frame(frame)
-
-        white_mask = self.clean_mask(cv2.inRange(hsv, HSV_WHITE_LOWER, HSV_WHITE_UPPER))
-        orange_mask = self.clean_mask(cv2.inRange(hsv, HSV_ORANGE_LOWER, HSV_ORANGE_UPPER))
-
-        raw_detections = []
-        for mask, is_vip in [(white_mask, False), (orange_mask, True)]:
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-            for cnt in contours:
-                area = cv2.contourArea(cnt)
-                if area < 50:
-                    continue
-                perimeter = cv2.arcLength(cnt, True)
-                if perimeter == 0:
-                    continue
-                circularity = 4 * math.pi * area / (perimeter ** 2)
-                if circularity < 0.6:
-                    continue
-                (x, y), _ = cv2.minEnclosingCircle(cnt)
-                raw_detections.append((int(x), int(y), is_vip))
-
-        return self.assign_ball_ids(raw_detections)
-
-
-
-    def assign_ball_ids(self, current_detections):
-        new_ids = {}
-        used_prev_ids = set()
-
-        for x, y, is_vip in current_detections:
-            min_dist = float('inf')
-            matched_id = None
-            for ball_id, (px, py, _) in self.prev_ball_ids.items():
-                if ball_id in used_prev_ids:
-                    continue
-                dist = math.hypot(x - px, y - py)
-                if dist < min_dist and dist < 40:
-                    min_dist = dist
-                    matched_id = ball_id
-
-            if matched_id is not None:
-                new_ids[matched_id] = (x, y, is_vip)
-                used_prev_ids.add(matched_id)
-            else:
-                new_ids[self.next_id] = (x, y, is_vip)
-                self.next_id += 1
-
-        self.prev_ball_ids = new_ids.copy()
-        return new_ids
 
 
     def detect_robot(self, frame):
