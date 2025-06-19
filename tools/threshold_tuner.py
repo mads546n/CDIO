@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 import re
 
-CONFIG_PATH = r"C:\Users\danih\Desktop\CDIO\pc_vision\config.py"
+CONFIG_PATH = r"C:\Users\andre\Documents\DTU\CDIO 2025\CDIO\pc_vision\config.py"
 
 def nothing(x):
     pass
@@ -60,7 +60,7 @@ def mouse_callback(event, x, y, flags, param):
 
 cv2.setMouseCallback("Tuner", mouse_callback)
 
-cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
 
 if not cap.isOpened():
     raise RuntimeError("Could not open webcam")

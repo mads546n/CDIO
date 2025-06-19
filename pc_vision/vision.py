@@ -13,7 +13,7 @@ import numpy as np
 import math
 
 class VisionSystem:
-    def __init__(self, camera_index=0):
+    def __init__(self, camera_index=1):
         self.cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
         if not self.cap.isOpened():
             raise RuntimeError("Failed to open webcam.")
@@ -46,7 +46,8 @@ class VisionSystem:
 
 
         if show_debug:
-            for ball_id, (x, y, is_vip) in balls.items():
+            for ball_id, ball in balls.items():
+                (x, y, is_vip) = (ball["x"], ball["y"], ball["is_vip"])
                 color = (0, 140, 255) if is_vip else (255, 255, 255)
                 cv2.circle(frame, (x, y), 10, color, 2)
                 cv2.putText(frame, str(ball_id), (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 1)
@@ -335,3 +336,23 @@ class VisionSystem:
     def __del__(self):
         if self.cap.isOpened():
             self.cap.release()
+
+    def robot_inside_safe_area(self, x, y):
+        """
+        Returns True if the robot is inside the yellow caution zone
+        near the walls (within WALL_MARGIN_PX). False if safely in the center area.
+        """
+        if not hasattr(self, "wall_bounds"):
+            return False  # Assume safe if walls are not yet detected
+
+        x_min, x_max, y_min, y_max = self.wall_bounds
+        margin = WALL_MARGIN_PX
+
+        in_caution_zone = (
+            x_min <= x <= x_min + margin or
+            x_max - margin <= x <= x_max or
+            y_min <= y <= y_min + margin or
+            y_max - margin <= y <= y_max
+        )
+
+        return in_caution_zone
