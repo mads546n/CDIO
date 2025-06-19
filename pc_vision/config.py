@@ -21,7 +21,7 @@ HSV_BLUE_UPPER = (119, 160, 255)
 HSV_PINK_LOWER = (123, 46, 205)
 HSV_PINK_UPPER = (180, 128, 255)
 
-HSV_RED_LOWER = (38, 140, 87)
+HSV_RED_LOWER = (156, 95, 0)
 HSV_RED_UPPER = (180, 255, 255)
 
 # Robot properties (used later for path planning)

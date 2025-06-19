@@ -73,51 +73,68 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
 
-    def detect_walls(self, frame, draw_debug=False):
+def detect_walls(self, frame, draw_debug=False):
     # 1) Make your red mask
-        hsv      = self.preprocess_frame(frame)
-        red_mask = self.clean_mask(
-            cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER)
-        )
+    hsv      = self.preprocess_frame(frame)
+    red_mask = self.clean_mask(
+        cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER)
+    )
 
-        # 2) Find all red contours
-        contours, _ = cv2.findContours(
-            red_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
-        )
-        if not contours:
-            return None
+    # 2) Find both outer and inner contours
+    contours, hierarchy = cv2.findContours(
+        red_mask,
+        cv2.RETR_CCOMP,          # get external + hole boundaries
+        cv2.CHAIN_APPROX_SIMPLE
+    )
+    if not contours or hierarchy is None:
+        return []  # still inside the function!
 
-        # 3) Merge all contour points into one big point cloud
-        all_pts = np.vstack(contours).reshape(-1, 2)
+    # 3) Sort contours by descending area and take the two biggest
+    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:2]
 
-        # 4) Compute convex hull of that cloud (optional but cleans up noise)
-        hull = cv2.convexHull(all_pts)
+    boxes = []
+    for idx, cnt in enumerate(contours):
+        area = cv2.contourArea(cnt)
+        if area < 500:     # skip tiny specks
+            continue
 
-        # 5) Fit one rotated rectangle around the hull
-        rect = cv2.minAreaRect(hull)          # ((cx,cy),(w,h),angle)
+        # 4) Fit rotated rectangle around this contour
+        rect = cv2.minAreaRect(cnt)
         box  = cv2.boxPoints(rect).astype(np.int32)
+        boxes.append((rect, box))
 
         if draw_debug:
-            # draw the four sides
-            cv2.drawContours(frame, [box], -1, (0,255,0), 2)
-            # mark the center
+            # outer box in green, inner in blue
+            color = (0,255,0) if idx == 0 else (255,0,0)
+            cv2.drawContours(frame, [box], -1, color, 2)
+
+            # mark center
             cx, cy = map(int, rect[0])
-            cv2.circle(frame, (cx,cy), 4, (255,0,0), -1)
+            cv2.circle(frame, (cx, cy), 4, color, -1)
+
             # annotate size & angle
             w, h = rect[1]
             angle = rect[2]
             cv2.putText(
                 frame,
-                f"{w:.0f}x{h:.0f}@{angle:.1f}°",
-                (cx-50, cy-10),
+                f"{w:.0f}×{h:.0f}@{angle:.1f}°",
+                (cx - 50, cy - 10 - idx*15),  # stagger text
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.5,
-                (255,255,255),
+                color,
                 1
             )
 
-        # return the 4 corner points (or unpack rect if you need center/size/angle)
-        return box
+    # 5) Return a list of dicts, one for each box
+    return [
+        {
+            'center':  tuple(r[0]),
+            'size':    tuple(r[1]),
+            'angle':   r[2],
+            'corners': b
+        }
+        for r, b in boxes
+    ]
     def detect_eggs(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
 
@@ -199,6 +216,7 @@ class VisionSystem:
 
         self.prev_ball_ids = new_ids.copy()
         return new_ids
+
 
 
     def detect_robot(self, frame):
