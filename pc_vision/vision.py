@@ -73,68 +73,59 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
 
-def detect_walls(self, frame, draw_debug=False):
-    # 1) Make your red mask
-    hsv      = self.preprocess_frame(frame)
-    red_mask = self.clean_mask(
-        cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER)
-    )
+    def detect_walls(self, frame, draw_debug=False):
+    # 1) Build red mask
+        hsv      = self.preprocess_frame(frame)
+        red_mask = self.clean_mask(
+            cv2.inRange(hsv, HSV_RED_LOWER, HSV_RED_UPPER)
+        )
 
-    # 2) Find both outer and inner contours
-    contours, hierarchy = cv2.findContours(
-        red_mask,
-        cv2.RETR_CCOMP,          # get external + hole boundaries
-        cv2.CHAIN_APPROX_SIMPLE
-    )
-    if not contours or hierarchy is None:
-        return []  # still inside the function!
+        # 2) Find all external contours
+        contours, _ = cv2.findContours(
+            red_mask,
+            cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE
+        )
+        if not contours:
+            return []
 
-    # 3) Sort contours by descending area and take the two biggest
-    contours = sorted(contours, key=cv2.contourArea, reverse=True)[:2]
+        # 3) Sort by area (largest first) and take the top two
+        contours = sorted(contours, key=cv2.contourArea, reverse=True)[:2]
 
-    boxes = []
-    for idx, cnt in enumerate(contours):
-        area = cv2.contourArea(cnt)
-        if area < 500:     # skip tiny specks
-            continue
+        boxes = []
+        for cnt in contours:
+            area = cv2.contourArea(cnt)
+            if area < 500:    # skip any tiny noise
+                continue
 
-        # 4) Fit rotated rectangle around this contour
-        rect = cv2.minAreaRect(cnt)
-        box  = cv2.boxPoints(rect).astype(np.int32)
-        boxes.append((rect, box))
+            # 4) Fit a rotated rectangle
+            rect = cv2.minAreaRect(cnt)        # ((cx,cy),(w,h),angle)
+            box  = cv2.boxPoints(rect).astype(np.int32)
+            boxes.append({
+                'center': tuple(rect[0]),
+                'size':   tuple(rect[1]),
+                'angle':  rect[2],
+                'corners': box
+            })
 
-        if draw_debug:
-            # outer box in green, inner in blue
-            color = (0,255,0) if idx == 0 else (255,0,0)
-            cv2.drawContours(frame, [box], -1, color, 2)
+            if draw_debug:
+                # draw each in a different color for clarity
+                color = (0,255,0) if len(boxes)==1 else (255,0,0)
+                cv2.drawContours(frame, [box], -1, color, 2)
+                cx, cy = map(int, rect[0])
+                cv2.circle(frame, (cx,cy), 4, color, -1)
+                w, h = rect[1]
+                cv2.putText(
+                    frame,
+                    f"{w:.0f}×{h:.0f}@{rect[2]:.1f}°",
+                    (cx-50, cy-10 - (len(boxes)-1)*15),  # stagger labels
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.5,
+                    color,
+                    1
+                )
 
-            # mark center
-            cx, cy = map(int, rect[0])
-            cv2.circle(frame, (cx, cy), 4, color, -1)
-
-            # annotate size & angle
-            w, h = rect[1]
-            angle = rect[2]
-            cv2.putText(
-                frame,
-                f"{w:.0f}×{h:.0f}@{angle:.1f}°",
-                (cx - 50, cy - 10 - idx*15),  # stagger text
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.5,
-                color,
-                1
-            )
-
-    # 5) Return a list of dicts, one for each box
-    return [
-        {
-            'center':  tuple(r[0]),
-            'size':    tuple(r[1]),
-            'angle':   r[2],
-            'corners': b
-        }
-        for r, b in boxes
-    ]
+        return boxes
     def detect_eggs(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
 
