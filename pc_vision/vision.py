@@ -42,6 +42,7 @@ class VisionSystem:
 
         balls = self.detect_balls(frame)
         robot_pos = self.detect_robot(frame)
+        goals = self.find_goal(frame, draw_debug=show_debug)
         eggs = self.detect_eggs(frame, draw_debug=show_debug)
 
 
@@ -76,7 +77,7 @@ class VisionSystem:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
 
-        return list(filter(lambda ball: ball not in eggs, list(balls.values()))), robot_pos, eggs
+        return list(filter(lambda ball: ball not in eggs, list(balls.values()))), robot_pos, eggs, goals
 
     def preprocess_frame(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
@@ -89,7 +90,7 @@ class VisionSystem:
         mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, self.kernel)
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, self.kernel)
         return mask
-    
+
 
 
     def detect_balls(self, frame):
@@ -112,7 +113,7 @@ class VisionSystem:
                 if circularity < 0.6:
                     continue
                 (x, y), _ = cv2.minEnclosingCircle(cnt)
-                
+
                 ball_data = {
                     "x": int(x),
                     "y": int(y),
@@ -269,7 +270,7 @@ class VisionSystem:
 
         return proximity
 
-    
+
 
     def detect_eggs(self, frame, draw_debug=False):
         hsv = self.preprocess_frame(frame)
@@ -327,10 +328,53 @@ class VisionSystem:
             return (center_x, center_y), (pink_pos[0] - blue_pos[0], pink_pos[1] - blue_pos[1])
 
         return None
-    
-    def find_goal(self, frame):
-        print("Scoring not yet implemented!")
-        sys.exit(0)
+
+    def find_goal(self, frame, draw_debug=False):
+        box = self.detect_walls(frame, draw_debug=draw_debug)
+
+        if box is None or len(box) != 4:
+            return {"big_goal": None, "small_goal": None}
+
+        box = np.array(box).reshape(4,2)
+
+        sorted_pts = sorted(box, key=lambda p: (p[1], p[0]))
+        top_pts = sorted(sorted_pts[:2], key=lambda p: p[0])
+        bottom_pts = sorted(sorted_pts[2:], key=lambda p: p[0])
+        ordered_box = np.array([top_pts[0], top_pts[1], bottom_pts[1], bottom_pts[0]])
+
+        def midpoint(p1, p2):
+            return ((p1[0] + p2[0]) // 2, (p1[1] + p2[1]) // 2)
+
+        sides = [
+            (ordered_box[0], ordered_box[1]),
+            (ordered_box[1], ordered_box[2]),
+            (ordered_box[2], ordered_box[3]),
+            (ordered_box[3], ordered_box[0])
+        ]
+        side_lenghts = [np.linag.norm(np.array(p2)-np.array(p1)) for (p1, p2) in sides]
+        short_side_indices = sorted(range(4), key=lambda i: side_lenghts[i])[:2]
+        goal_centers = [midpoint(*sides[i]) for i in short_side_indices]
+
+        if goal_centers[0][0] < goal_centers[1][0]:
+            big_goal = goal_centers[0]
+            small_goal = goal_centers[1]
+        else:
+            big_goal = goal_centers[1]
+            small_goal = goal_centers[0]
+
+        if draw_debug:
+            for pt, color, label in [
+                (big_goal, (0,0,255), "BIG"),
+                (small_goal, (255,0,255), "SMALL")
+            ]:
+                cv2.rectangle(frame, (pt[0]-5, pt[1]-5), (pt[0]+5, pt[1]+5), color, -1)
+                cv2.putText(frame, label, (pt[0] + 6, pt[1] -6),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1)
+        return {
+            "big_goal": big_goal,
+            "small_goal": small_goal,
+        }
+
 
     def __del__(self):
         if self.cap.isOpened():
