@@ -351,8 +351,8 @@ class VisionSystem:
             (ordered_box[2], ordered_box[3]),
             (ordered_box[3], ordered_box[0])
         ]
-        side_lenghts = [np.linalg.norm(np.array(p2)-np.array(p1)) for (p1, p2) in sides]
-        short_side_indices = sorted(range(4), key=lambda i: side_lenghts[i])[:2]
+        side_lengths = [np.linalg.norm(np.array(p2)-np.array(p1)) for (p1, p2) in sides]
+        short_side_indices = sorted(range(4), key=lambda i: side_lengths[i])[:2]
         goal_centers = [midpoint(*sides[i]) for i in short_side_indices]
 
         if goal_centers[0][0] < goal_centers[1][0]:
