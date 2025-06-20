@@ -125,6 +125,32 @@ class VisionSystem:
         self.left_goal = (x1, vertical_middle)
         self.right_goal = (x2, vertical_middle)
 
+        width = x2 - x1
+
+        offset_x = 0
+        offset_y = 0
+        ratio_factor = 0.4
+
+        x1_middle = int(x1 + width * ratio_factor + offset_x)
+        x2_middle = int(x2 - width * ratio_factor + offset_x)
+        y1_middle = int(y1 + height * ratio_factor + offset_y)
+        y2_middle = int(y2 - height * ratio_factor + offset_y)
+
+        self.center_bounds = x1_middle, x2_middle, y1_middle, y2_middle
+
+        cv2.rectangle(
+                self.overlay,
+                (x1_middle, y1_middle),
+                (x2_middle, y2_middle),
+                (0, 255, 255), -1
+            )
+
+        self.waypoint1 = int(x1 + x1_middle / 2), int(y1 + y1_middle * 0.7)
+        self.waypoint2 = int(x2 - x1_middle / 2), int(y1 + y1_middle * 0.7)
+
+        cv2.circle(self.overlay, self.waypoint1, 4, (0, 0, 255), -1)
+        cv2.circle(self.overlay, self.waypoint2, 4, (0, 0, 255), -1)
+
         return max_area
     
     def choose_goal(self, robot_pos):
@@ -155,6 +181,12 @@ class VisionSystem:
                 if circularity < 0.6:
                     continue
                 (x, y), _ = cv2.minEnclosingCircle(cnt)
+
+                if x < self.wall_bounds[0] + WALL_MARGIN_PX or x > self.wall_bounds[1] - WALL_MARGIN_PX or y < self.wall_bounds[2] + WALL_MARGIN_PX or y > self.wall_bounds[3] - WALL_MARGIN_PX:
+                    continue
+
+                if x > self.center_bounds[0] and x < self.center_bounds[1] and y > self.center_bounds[2] and y < self.center_bounds[3]:
+                    continue
                 
                 ball_data = {
                     "x": int(x),

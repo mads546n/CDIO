@@ -1,5 +1,6 @@
 import math
 from config import WALL_MARGIN_PX
+from config import TIMER_RESET
 
 class StrategyPlanner:
     def __init__(self, vision_system):
@@ -7,6 +8,30 @@ class StrategyPlanner:
         self.command_queue = []
         self.vision = vision_system
         self.debug_draw = {}
+        self.timer = TIMER_RESET
+        self.scoring = False
+        self.switch_sides = False
+
+    def decide_next_move(self, balls, robot_pos):
+        if self.scoring:
+            return self.score(robot_pos)
+        else:
+            if self.switch_sides:
+                self.switch_sides(robot_pos)
+            else:
+                command = self.approach_ball(balls, robot_pos)
+                self.timer -= 1
+                if self.timer == 0:
+                    self.timer = TIMER_RESET
+                    self.scoring = True
+
+                return command
+
+    def switch_sides(self, robot_pos):
+        w1_x, w1_y = self.vision.waypoint1
+        w2_x, w2_y = self.vision.waypoint2
+
+        
 
     def approach_ball(self, balls, robot_pos):
         self.debug_draw.clear()
@@ -19,11 +44,20 @@ class StrategyPlanner:
 
         (robot_x, robot_y), (robot_dx, robot_dy) = robot_pos
 
-        vip_balls = [b for b in balls if b["is_vip"]]
-        white_balls = [b for b in balls if not b["is_vip"]]
-        white_balls = [b for b in white_balls if self._distance(robot_x, robot_y, b["x"], b["y"]) > 3.0]
-        candidates = white_balls if white_balls else vip_balls
+        # vip_balls = [b for b in balls if b["is_vip"]]
+        # white_balls = [b for b in balls if not b["is_vip"]]
+        # white_balls = [b for b in white_balls if self._distance(robot_x, robot_y, b["x"], b["y"]) > 3.0]
+        # candidates = white_balls if white_balls else vip_balls
+
+        min_distance = 10
+
+        center_x1 = self.vision.center_bounds[0]
+        center_x2 = self.vision.center_bounds[1]
+        candidates = [b for b in balls if ((b["x"] < center_x1 and robot_x < center_x1) or (b["x"] > center_x2 and robot_x > center_x2)) and self._distance(robot_x, robot_y, b["x"], b["y"]) > min_distance]
+
         if not candidates:
+            self.switch_sides = True
+            self.scoring = True
             return None
 
         target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b["x"], b["y"]))
@@ -109,11 +143,12 @@ class StrategyPlanner:
 
         if distance_cm > 10:
             self.command_queue = [
-                f"intake off"
+                f"intake off",
                 f"rotate {int(angle_deg)}",
                 f"move {int(distance_cm)}"
             ]
         else:
+            self.scoring = False
             self.command_queue = [f"intake reverse"]
         return self.command_queue.pop(0)
 

@@ -26,28 +26,7 @@ def main():
             print("⚠️ No balls or robot detected. Retrying...")
             continue
 
-        command = planner.score(robot_pos)
-
-        if command is None:
-            print("Could not generate command")
-            continue
-        elif command == "DONE":
-            break
-
-        print(f"→ Sending command: {command}")
-        response = ev3.send_command(command)
-        print(f"← Response: {response}")
-
-    while True:
-        goal, robot_pos = vision.find_goal()
-
-        if goal is None or robot_pos is None:
-            print("⚠️ No balls or robot detected. Retrying...")
-            continue
-        elif command == "DONE":
-            ev3.close()
-
-        command = planner.score(goal, robot_pos)
+        command = planner.decide_next_move(balls, robot_pos)
 
         if command is None:
             print("Could not generate command")
