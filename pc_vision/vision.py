@@ -145,6 +145,7 @@ class VisionSystem:
                 (0, 255, 255), -1
             )
 
+        # The waypoints are always above the center
         self.waypoint1 = int(x1 + x1_middle / 2), int(y1 + y1_middle * 0.7)
         self.waypoint2 = int(x2 - x1_middle / 2), int(y1 + y1_middle * 0.7)
 
@@ -159,6 +160,7 @@ class VisionSystem:
         horizontal_middle = x1 + (width / 2)
         ((robot_x, _), _) = robot_pos
         
+        # Choose the goal that's in the same half of the field as the robot
         return self.left_goal if robot_x < horizontal_middle else self.right_goal
 
     def detect_balls(self, frame):
