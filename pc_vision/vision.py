@@ -163,43 +163,75 @@ class VisionSystem:
         # Choose the goal that's in the same half of the field as the robot
         return self.left_goal if robot_x < horizontal_middle else self.right_goal
 
-    def detect_balls(self, frame):
-        hsv = self.preprocess_frame(frame)
+        def detect_balls(self, frame):
+            hsv = self.preprocess_frame(frame)
+            raw_detections = []
 
-        white_mask = self.clean_mask(cv2.inRange(hsv, HSV_WHITE_LOWER, HSV_WHITE_UPPER))
-        orange_mask = self.clean_mask(cv2.inRange(hsv, HSV_ORANGE_LOWER, HSV_ORANGE_UPPER))
+            # Convert to grayscale and blur to reduce noise
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
-        raw_detections = []
-        for mask, is_vip in [(white_mask, False), (orange_mask, True)]:
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+            # Threshold to get binary image
+            _, thresh = cv2.threshold(blurred, 60, 255, cv2.THRESH_BINARY)
+
+            # Find contours from thresholded image
+            contours, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
             for cnt in contours:
                 area = cv2.contourArea(cnt)
                 if area < 50:
                     continue
+
                 perimeter = cv2.arcLength(cnt, True)
                 if perimeter == 0:
                     continue
+
                 circularity = 4 * math.pi * area / (perimeter ** 2)
                 if circularity < 0.6:
                     continue
-                (x, y), _ = cv2.minEnclosingCircle(cnt)
 
-                if x < self.wall_bounds[0] + WALL_MARGIN_PX or x > self.wall_bounds[1] - WALL_MARGIN_PX or y < self.wall_bounds[2] + WALL_MARGIN_PX or y > self.wall_bounds[3] - WALL_MARGIN_PX:
+                (x, y), radius = cv2.minEnclosingCircle(cnt)
+                cx, cy = int(x), int(y)
+
+                # Discard if too close to walls or center
+                if (
+                    cx < self.wall_bounds[0] + WALL_MARGIN_PX or cx > self.wall_bounds[1] - WALL_MARGIN_PX or
+                    cy < self.wall_bounds[2] + WALL_MARGIN_PX or cy > self.wall_bounds[3] - WALL_MARGIN_PX
+                ):
+                    continue
+                if (
+                    self.center_bounds[0] < cx < self.center_bounds[1] and
+                    self.center_bounds[2] < cy < self.center_bounds[3]
+                ):
                     continue
 
-                if x > self.center_bounds[0] and x < self.center_bounds[1] and y > self.center_bounds[2] and y < self.center_bounds[3]:
-                    continue
-                
+                # Sample HSV value inside the ball region
+                hsv_val = hsv[cy, cx]
+
+                h, s, v = hsv_val
+
+                # Classify color: you can calibrate these dynamically
+                if (HSV_ORANGE_LOWER[0] <= h <= HSV_ORANGE_UPPER[0] and
+                    HSV_ORANGE_LOWER[1] <= s <= HSV_ORANGE_UPPER[1] and
+                    HSV_ORANGE_LOWER[2] <= v <= HSV_ORANGE_UPPER[2]):
+                    is_vip = True
+                elif (HSV_WHITE_LOWER[0] <= h <= HSV_WHITE_UPPER[0] and
+                    HSV_WHITE_LOWER[1] <= s <= HSV_WHITE_UPPER[1] and
+                    HSV_WHITE_LOWER[2] <= v <= HSV_WHITE_UPPER[2]):
+                    is_vip = False
+                else:
+                    continue  # Unknown color — skip
+
                 ball_data = {
-                    "x": int(x),
-                    "y": int(y),
+                    "x": cx,
+                    "y": cy,
                     "is_vip": is_vip,
-                    "wall_proximity": self.get_wall_proximity(int(x), int(y))
+                    "wall_proximity": self.get_wall_proximity(cx, cy)
                 }
                 raw_detections.append(ball_data)
 
-
         return self.assign_ball_ids(raw_detections)
+
 
 
 
