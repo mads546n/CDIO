@@ -163,7 +163,7 @@ class VisionSystem:
         # Choose the goal that's in the same half of the field as the robot
         return self.left_goal if robot_x < horizontal_middle else self.right_goal
 
-        def detect_balls(self, frame):
+    def detect_balls(self, frame):
             hsv = self.preprocess_frame(frame)
             raw_detections = []
 
@@ -230,7 +230,7 @@ class VisionSystem:
                 }
                 raw_detections.append(ball_data)
 
-        return self.assign_ball_ids(raw_detections)
+            return self.assign_ball_ids(raw_detections)
 
 
 
@@ -380,38 +380,6 @@ class VisionSystem:
 
         return proximity
 
-    
-
-    def detect_eggs(self, frame, draw_debug=False):
-        hsv = self.preprocess_frame(frame)
-
-        white_mask = self.clean_mask(cv2.inRange(hsv, HSV_WHITE_LOWER, HSV_WHITE_UPPER))
-        eggs = []
-
-        contours, _ = cv2.findContours(white_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-        for cnt in contours:
-            area = cv2.contourArea(cnt)
-            if area < 80:  # Tune this
-                continue
-
-            perimeter = cv2.arcLength(cnt, True)
-            if perimeter == 0:
-                continue
-
-            circularity = 4 * math.pi * area / (perimeter ** 2)
-            x, y, w, h = cv2.boundingRect(cnt)
-            aspect_ratio = float(w) / h if h != 0 else 0
-
-            # Heuristic: eggs = more elongated or less circular
-            if circularity < 0.65 and (aspect_ratio < 0.75 or aspect_ratio > 1.3):
-                cx, cy = x + w // 2, y + h // 2
-                eggs.append((cx, cy, w, h))
-
-                if draw_debug:
-                    cv2.ellipse(frame, (cx, cy), (w // 2, h // 2), 0, 0, 360, (200, 0, 255), 2)
-                    cv2.putText(frame, "Egg", (cx - 10, cy - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 0, 255), 1)
-
-        return eggs
 
 
 
