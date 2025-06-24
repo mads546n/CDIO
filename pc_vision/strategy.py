@@ -21,6 +21,7 @@ class StrategyPlanner:
             # Otherwise if we are trying to switch sides initialize the waypoints
             if self.switch_sides:
                 self.switch_sides_func(robot_pos)
+                return None
 
             command = self.approach_ball(balls, robot_pos)
 
@@ -41,7 +42,8 @@ class StrategyPlanner:
         # Waypoint 1 is the closer waypoint if it is to the right of the center's right margin and if the robot is to the right of the center's left margin
         # otherwise waypoint 2 is closer. The farthest waypoint is always the waypoint that was not chosen as being closer.
         self.closer_waypoint, self.farther_waypoint = (self.vision.waypoint1, self.vision.waypoint2) if w1_x > center_x2 and robot_pos > center_x1 else (self.vision.waypoint2, self.vision.waypoint1)
-
+        
+        self.scoring = False
         self.switch_sides = False
 
     def approach_ball(self, balls, robot_pos):
@@ -66,10 +68,13 @@ class StrategyPlanner:
         center_x2 = self.vision.center_bounds[1]
         candidates = [b for b in balls if ((b["x"] < center_x1 and robot_x < center_x1) or (b["x"] > center_x2 and robot_x > center_x2)) and self._distance(robot_x, robot_y, b["x"], b["y"]) > min_distance]
 
-        if not candidates and (not self.closer_waypoint) and (not self.farther_waypoint):
-            self.switch_sides = True
-            self.scoring = True
-            return None
+        if not candidates:
+            if self.closer_waypoint or self.farther_waypoint:
+        # Go to waypoints first before scoring
+                return None
+            else:   
+                self.switch_sides = True
+                return None  # Don't enable scoring yet — let switch_sides_func run next frame
 
         if candidates:
             target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b["x"], b["y"]))
