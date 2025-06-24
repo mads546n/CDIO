@@ -389,23 +389,44 @@ class VisionSystem:
         blue_mask = self.clean_mask(cv2.inRange(hsv, HSV_BLUE_LOWER, HSV_BLUE_UPPER))
         pink_mask = self.clean_mask(cv2.inRange(hsv, HSV_PINK_LOWER, HSV_PINK_UPPER))
 
-        def find_center(mask):
+        def find_square_center(mask):
             contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
             if not contours:
                 return None
-            largest = max(contours, key=cv2.contourArea)
-            (x, y), _ = cv2.minEnclosingCircle(largest)
-            return int(x), int(y)
 
-        blue_pos = find_center(blue_mask)
-        pink_pos = find_center(pink_mask)
+            # Sort by area (largest first)
+            contours = sorted(contours, key=cv2.contourArea, reverse=True)
+            for cnt in contours:
+                area = cv2.contourArea(cnt)
+                if area < 100:  # Skip small noise
+                    continue
+
+                epsilon = 0.05 * cv2.arcLength(cnt, True)
+                approx = cv2.approxPolyDP(cnt, epsilon, True)
+
+                # Look for quadrilaterals (squares or rectangles)
+                if len(approx) == 4 and cv2.isContourConvex(approx):
+                    M = cv2.moments(approx)
+                    if M["m00"] == 0:
+                        continue
+                    cx = int(M["m10"] / M["m00"])
+                    cy = int(M["m01"] / M["m00"])
+                    return (cx, cy)
+
+            return None
+
+        blue_pos = find_square_center(blue_mask)
+        pink_pos = find_square_center(pink_mask)
 
         if blue_pos and pink_pos:
             center_x = (blue_pos[0] + pink_pos[0]) // 2
             center_y = (blue_pos[1] + pink_pos[1]) // 2
-            return (center_x, center_y), (pink_pos[0] - blue_pos[0], pink_pos[1] - blue_pos[1])
+            dx = pink_pos[0] - blue_pos[0]
+            dy = pink_pos[1] - blue_pos[1]
+            return (center_x, center_y), (dx, dy)
 
         return None
+
     
     def find_goal(self, frame):
         print("Scoring not yet implemented!")
