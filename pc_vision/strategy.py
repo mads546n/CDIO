@@ -60,7 +60,7 @@ class StrategyPlanner:
         # white_balls = [b for b in white_balls if self._distance(robot_x, robot_y, b["x"], b["y"]) > 3.0]
         # candidates = white_balls if white_balls else vip_balls
 
-        min_distance = 5
+        min_distance = 1
 
         center_x1 = self.vision.center_bounds[0]
         center_x2 = self.vision.center_bounds[1]
@@ -139,7 +139,7 @@ class StrategyPlanner:
         dy = ty - robot_y
         angle_deg = math.degrees(math.atan2(robot_dx * dy - robot_dy * dx,
                                             robot_dx * dx + robot_dy * dy))
-        distance_cm = self._distance(robot_x, robot_y, tx, ty) / 10
+        distance_cm = self._distance(robot_x, robot_y, tx, ty) / 20
 
         print(f"[TARGET] Ball at ({tx}, {ty}) — angle: {angle_deg:.1f}°, dist: {distance_cm:.1f}cm")
 

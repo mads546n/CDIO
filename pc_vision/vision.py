@@ -198,6 +198,10 @@ class VisionSystem:
                 }
                 raw_detections.append(ball_data)
 
+                cv2.imshow("white mask", white_mask)
+                cv2.imshow("orange mask", orange_mask)
+
+        print(f"[VISION] raw_detections = {raw_detections}")
 
         return self.assign_ball_ids(raw_detections)
 
@@ -400,10 +404,15 @@ class VisionSystem:
         blue_pos = find_center(blue_mask)
         pink_pos = find_center(pink_mask)
 
+        cv2.imshow("blue mask", blue_mask)
+        cv2.imshow("pink mask", pink_mask)
+
         if blue_pos and pink_pos:
             center_x = (blue_pos[0] + pink_pos[0]) // 2
             center_y = (blue_pos[1] + pink_pos[1]) // 2
             return (center_x, center_y), (pink_pos[0] - blue_pos[0], pink_pos[1] - blue_pos[1])
+
+        print(f"[VISION] blue_pos={blue_pos}, pink_pos={pink_pos}")
 
         return None
     

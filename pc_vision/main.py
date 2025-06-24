@@ -38,5 +38,8 @@ def main():
         response = ev3.send_command(command)
         print(f"← Response: {response}")
 
+        print("DETECTED BALLS:", balls)
+        print("DETECTED robot:", robot_pos)
+
 if __name__ == "__main__":
     main()
