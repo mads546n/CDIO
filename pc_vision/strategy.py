@@ -25,10 +25,6 @@ class StrategyPlanner:
             command = self.approach_ball(balls, robot_pos)
 
             # Force the robot to go into its scoring logic on its next move if it runs out its timer
-            self.timer -= 1
-            if self.timer == 0:
-                self.timer = TIMER_RESET
-                self.scoring = True
 
             return command
 
