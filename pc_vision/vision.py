@@ -42,7 +42,6 @@ class VisionSystem:
 
         balls = self.detect_balls(frame)
         robot_pos = self.detect_robot(frame)
-        eggs = self.detect_eggs(frame, draw_debug=show_debug)
 
         if show_debug:
             for ball_id, ball in balls.items():
@@ -76,7 +75,7 @@ class VisionSystem:
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 exit()
 
-        return list(filter(lambda ball: ball not in eggs, list(balls.values()))), robot_pos, eggs
+        return list(balls.values()), robot_pos
 
     def preprocess_frame(self, frame):
         hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)

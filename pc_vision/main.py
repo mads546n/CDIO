@@ -20,7 +20,7 @@ def main():
 
 
     while True:
-        balls, robot_pos, eggs = vision.detect_state(show_debug=True)
+        balls, robot_pos = vision.detect_state(show_debug=True)
 
         if not balls or robot_pos is None:
             print("⚠️ No balls or robot detected. Retrying...")
