@@ -60,7 +60,7 @@ class StrategyPlanner:
         # white_balls = [b for b in white_balls if self._distance(robot_x, robot_y, b["x"], b["y"]) > 3.0]
         # candidates = white_balls if white_balls else vip_balls
 
-        min_distance = 5
+        min_distance = 100
 
         center_x1 = self.vision.center_bounds[0]
         center_x2 = self.vision.center_bounds[1]
@@ -88,7 +88,11 @@ class StrategyPlanner:
         elif self.farther_waypoint:
             if self._distance(robot_x, robot_y, self.farther_waypoint[0], self.farther_waypoint[1]) < min_distance:
                 self.farther_waypoint = None
-                target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b["x"], b["y"]))
+                if candidates:
+                    target = min(candidates, key=lambda b: self._distance(robot_x, robot_y, b["x"], b["y"]))
+                else:
+                    self.scoring = True
+                    return None
             else:
                 tx, ty = self.farther_waypoint[0], self.farther_waypoint[1]
 
@@ -171,7 +175,6 @@ class StrategyPlanner:
 
         if distance_cm > 10:
             self.command_queue = [
-                f"intake off",
                 f"rotate {int(angle_deg)}",
                 f"move {int(distance_cm)}"
             ]

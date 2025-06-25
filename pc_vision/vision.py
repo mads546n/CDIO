@@ -15,6 +15,8 @@ import math
 class VisionSystem:
     def __init__(self, camera_index=1):
         self.cap = cv2.VideoCapture(camera_index, cv2.CAP_DSHOW)
+        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE,0.25)
+        self.cap.set(cv2.CAP_PROP_EXPOSURE, -6)
         if not self.cap.isOpened():
             raise RuntimeError("Failed to open webcam.")
 

@@ -17,12 +17,17 @@ def main():
     planner = StrategyPlanner(vision)
     vision.strategy = planner
     vision.set_walls()
+    sleep = True
 
+   
 
     while True:
+        if(sleep):
+            time.sleep(5)
+            sleep = False
         balls, robot_pos, eggs = vision.detect_state(show_debug=True)
 
-        if not balls or robot_pos is None:
+        if not robot_pos:
             print("⚠️ No balls or robot detected. Retrying...")
             continue
 
