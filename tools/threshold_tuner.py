@@ -61,8 +61,6 @@ def mouse_callback(event, x, y, flags, param):
 cv2.setMouseCallback("Tuner", mouse_callback)
 
 cap = cv2.VideoCapture(1, cv2.CAP_DSHOW)
-cap.set(cv2.CAP_PROP_AUTO_EXPOSURE,0.25)
-cap.set(cv2.CAP_PROP_EXPOSURE, -6)
 
 if not cap.isOpened():
     raise RuntimeError("Could not open webcam")

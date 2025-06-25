@@ -64,7 +64,7 @@ class StrategyPlanner:
 
         center_x1 = self.vision.center_bounds[0]
         center_x2 = self.vision.center_bounds[1]
-        candidates = [b for b in balls if ((b["x"] < center_x1 and robot_x < center_x1) or (b["x"] > center_x2 and robot_x > center_x2)) and self._distance(robot_x, robot_y, b["x"], b["y"]) > min_distance]
+        candidates = [b for b in balls if ((b["x"] < center_x1 and robot_x < center_x1) or (b["x"] > center_x2 and robot_x > center_x2)) and self._distance(robot_x, robot_y, b["x"], b["y"]) > min_distance and (not b["is_vip"])]
 
         if not candidates and (not self.closer_waypoint) and (not self.farther_waypoint):
             self.switch_sides = True
